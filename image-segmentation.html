@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image with Labeled Hotspots</title>
+    <style>
+        #image-container {
+            position: relative;
+            display: inline-block;
+        }
+        #overlay-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .hotspot {
+            fill: rgba(0, 255, 0, 0.3);
+            stroke: green;
+            stroke-width: 2;
+            cursor: pointer;
+        }
+        .label {
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            fill: red;
+            stroke: none;
+            text-anchor: middle;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 5px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            border-radius: 3px;
+            pointer-events: none;
+            font-size: 12px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="image-container">
+        <img id="base-image" src="chair.png" alt="Chair">
+        <svg id="overlay-svg"></svg>
+        <div id="tooltip" class="tooltip" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Wait for the image to load
+        document.getElementById('base-image').addEventListener('load', function() {
+            const img = this;
+            const svg = document.getElementById('overlay-svg');
+            const tooltip = document.getElementById('tooltip');
+
+            // Set the SVG dimensions to match the image
+            svg.setAttribute('width', img.clientWidth);
+            svg.setAttribute('height', img.clientHeight);
+
+            // Load the polygon data
+            fetch('polygons_with_labels.json')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach((obj) => {
+                        const points = obj.points.map(point => point.join(',')).join(' ');
+                        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                        polygon.setAttribute('points', points);
+                        polygon.setAttribute('class', 'hotspot');
+                        polygon.setAttribute('data-id', obj.id);
+                        polygon.setAttribute('data-class-name', obj.class_name);
+
+                        // Event listeners for interactivity
+                        polygon.addEventListener('click', () => {
+                            alert(`You clicked on ${obj.class_name} (ID: ${obj.id})`);
+                        });
+
+                        polygon.addEventListener('mousemove', (event) => {
+                            tooltip.style.left = event.pageX + 10 + 'px';
+                            tooltip.style.top = event.pageY + 10 + 'px';
+                            tooltip.innerHTML = `${obj.class_name}`;
+                            tooltip.style.display = 'block';
+                        });
+
+                        polygon.addEventListener('mouseout', () => {
+                            tooltip.style.display = 'none';
+                        });
+
+                        // Add the polygon to the SVG
+                        svg.appendChild(polygon);
+
+                        // Calculate centroid of the polygon to place the label
+                        let sumX = 0;
+                        let sumY = 0;
+                        let numPoints = obj.points.length;
+                        obj.points.forEach(point => {
+                            sumX += point[0];
+                            sumY += point[1];
+                        });
+                        let centroidX = sumX / numPoints;
+                        let centroidY = sumY / numPoints;
+
+                        // Create a text label
+                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        text.setAttribute('x', centroidX);
+                        text.setAttribute('y', centroidY);
+                        text.setAttribute('class', 'label');
+                        text.textContent = obj.class_name; // Display the class name
+                        svg.appendChild(text);
+                    });
+                })
+                .catch(error => console.error('Error loading polygon data:', error));
+        });
+    </script>
+</body>
+</html>
